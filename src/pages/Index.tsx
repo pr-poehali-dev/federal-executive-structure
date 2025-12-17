@@ -88,6 +88,29 @@ const executiveBodies: ExecutiveBody[] = [
   }
 ];
 
+interface Question {
+  id: number;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+}
+
+const questions: Question[] = [
+  {
+    id: 1,
+    question: 'Какой государственный орган осуществляет руководство деятельностью Правительства РФ?',
+    options: [
+      'Федеральное Собрание РФ',
+      'Президент РФ',
+      'Генеральная Прокуратура РФ',
+      'Конституционный Суд РФ'
+    ],
+    correctAnswer: 1,
+    explanation: 'Согласно Конституции РФ (ст. 110), Правительство РФ возглавляется Председателем Правительства, который назначается Президентом РФ с согласия Государственной Думы. Президент РФ осуществляет общее руководство деятельностью Правительства РФ.'
+  }
+];
+
 const sources = [
   {
     id: 1,
@@ -117,6 +140,29 @@ const sources = [
 
 const Index = () => {
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
+  const [showResults, setShowResults] = useState(false);
+
+  const handleAnswerSelect = (questionId: number, answerIndex: number) => {
+    setSelectedAnswers(prev => ({ ...prev, [questionId]: answerIndex }));
+  };
+
+  const handleSubmitQuiz = () => {
+    setShowResults(true);
+  };
+
+  const handleResetQuiz = () => {
+    setSelectedAnswers({});
+    setShowResults(false);
+  };
+
+  const calculateScore = () => {
+    let correct = 0;
+    questions.forEach(q => {
+      if (selectedAnswers[q.id] === q.correctAnswer) correct++;
+    });
+    return correct;
+  };
 
   const filteredBodies = selectedType === 'all' 
     ? executiveBodies 
@@ -236,6 +282,114 @@ const Index = () => {
             </Card>
           ))}
         </div>
+
+        <Separator className="my-12" />
+
+        <section className="mb-12">
+          <div className="flex items-center gap-3 mb-8">
+            <Icon name="HelpCircle" size={32} className="text-primary" />
+            <h2 className="text-3xl font-bold">Тестовые задания для самопроверки</h2>
+          </div>
+
+          <Card className="border-2 mb-6">
+            <CardContent className="pt-6">
+              {questions.map((q, index) => (
+                <div key={q.id} className="mb-8 last:mb-0">
+                  <h3 className="font-semibold text-lg mb-4 flex items-start gap-3">
+                    <span className="text-primary flex-shrink-0">{q.id}.</span>
+                    <span>{q.question}</span>
+                  </h3>
+                  <div className="space-y-3 ml-8">
+                    {q.options.map((option, optionIndex) => {
+                      const isSelected = selectedAnswers[q.id] === optionIndex;
+                      const isCorrect = optionIndex === q.correctAnswer;
+                      const showCorrect = showResults && isCorrect;
+                      const showIncorrect = showResults && isSelected && !isCorrect;
+
+                      return (
+                        <button
+                          key={optionIndex}
+                          onClick={() => !showResults && handleAnswerSelect(q.id, optionIndex)}
+                          disabled={showResults}
+                          className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                            showCorrect
+                              ? 'bg-green-50 border-green-500 text-green-900'
+                              : showIncorrect
+                              ? 'bg-red-50 border-red-500 text-red-900'
+                              : isSelected
+                              ? 'bg-primary/10 border-primary'
+                              : 'bg-card border-border hover:border-primary/50'
+                          } ${
+                            showResults ? 'cursor-default' : 'cursor-pointer'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                              showCorrect
+                                ? 'border-green-500 bg-green-500'
+                                : showIncorrect
+                                ? 'border-red-500 bg-red-500'
+                                : isSelected
+                                ? 'border-primary bg-primary'
+                                : 'border-muted-foreground'
+                            }">
+                              {(showCorrect || (isSelected && !showResults)) && (
+                                <Icon name="Check" size={16} className="text-white" />
+                              )}
+                              {showIncorrect && (
+                                <Icon name="X" size={16} className="text-white" />
+                              )}
+                            </span>
+                            <span className="flex-1">
+                              {String.fromCharCode(97 + optionIndex)}) {option}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {showResults && (
+                    <div className="mt-4 ml-8 p-4 bg-muted/50 rounded-lg border-l-4 border-primary">
+                      <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <Icon name="Info" size={16} className="text-primary" />
+                        Пояснение:
+                      </p>
+                      <p className="text-sm text-muted-foreground">{q.explanation}</p>
+                    </div>
+                  )}
+                  {index < questions.length - 1 && <Separator className="mt-8" />}
+                </div>
+              ))}
+
+              <div className="mt-8 pt-6 border-t flex items-center justify-between">
+                {showResults ? (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <Icon name="Award" size={24} className="text-primary" />
+                      <span className="text-lg font-semibold">
+                        Результат: {calculateScore()} из {questions.length} правильных ответов
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleResetQuiz}
+                      className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                    >
+                      Пройти заново
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleSubmitQuiz}
+                    disabled={Object.keys(selectedAnswers).length !== questions.length}
+                    className="ml-auto px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Проверить ответы
+                  </button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
 
         <Separator className="my-12" />
 
